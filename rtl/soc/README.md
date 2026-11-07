@@ -9,4 +9,6 @@ Verification targets:
 - `make soc-lint`: whole-top Verilator elaboration/lint.
 - `make sim`: compile `sw/soc_test.c` for RV32I, link at SRAM address zero, convert to little-endian word hex, load it through `$readmemh`, and run the complete SoC in Verilator.
 
+UART, DMA, I2C, and fabric tests run with deterministic seeds 1, 42, and 2025 by default. Override with `make dma-test SEEDS="7 19 1234"`. Test logs include scenario labels, seed values, and functional bin counts; each run fails if a required bin is empty.
+
 The SRAM image uses one 32-bit hexadecimal word per line, with byte zero in bits 7:0, matching `scripts/bin_to_hex.py`. The integration program checks a UART signature, performs and verifies an unaligned DMA copy, and writes/reads a byte through the I2C master. It writes success/failure markers to the simulation completion mailbox at `0x10003000`; this address is reserved for simulation reporting. The top testbench independently checks transmitted UART bytes, copied SRAM contents, and I2C pin transactions.

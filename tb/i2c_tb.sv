@@ -49,6 +49,14 @@ module i2c_tb;
     integer read_bit = 0;
     logic [7:0] target_byte = 8'hA5;
     logic [31:0] status, received;
+    logic [31:0] rng_state = 32'h1;
+    integer write_cov [0:3];
+    task automatic random_byte(output logic [7:0] value);
+        rng_state = rng_state ^ (rng_state << 13);
+        rng_state = rng_state ^ (rng_state >> 17);
+        rng_state = rng_state ^ (rng_state << 5);
+        value = rng_state[7:0];
+    endtask
 
     // Minimal behavioral target: capture a written byte, ACK its ninth clock,
     // and optionally drive a fixed byte during a controller read.
@@ -72,8 +80,12 @@ module i2c_tb;
         end
     end
     initial begin
+        logic [7:0] random_data;
+        for (integer k=0; k<4; k=k+1) write_cov[k]=0;
+        if ($value$plusargs("SEED=%d", rng_state)) begin end
+        if (rng_state == 0) rng_state=32'h1;
         repeat (4) @(negedge clk); rst_n = 1;
-        $display("I2C scenario: divider reset, START, MSB-first WRITE, ACK, STOP");
+        $display("I2C seed=%0d scenario: divider reset, START, WRITE, ACK, STOP", rng_state);
         rd(8, received);
         if (received != 250) $fatal(1, "bad I2C divider reset");
         wr(8, 4);
@@ -103,6 +115,21 @@ module i2c_tb;
             if (observed != pattern) $fatal(1, "write pattern %02x observed %02x", pattern, observed);
             $display("  I2C target captured=%02x", observed);
         end
+
+        $display("I2C scenario: seeded random byte transfers");
+        for (integer n=0; n<32; n=n+1) begin
+            random_byte(random_data);
+            wr(0, random_data);
+            bit_count=0; observed=0;
+            command(4);
+            if (observed != random_data)
+                $fatal(1, "seed=%0d I2C random[%0d] expected=%02x got=%02x", rng_state,n,random_data,observed);
+            write_cov[random_data[7:6]]++;
+        end
+        for (integer k=0; k<4; k=k+1)
+            if (write_cov[k] == 0) $fatal(1, "seed=%0d I2C write coverage bin %0d empty", rng_state,k);
+        $display("  I2C write coverage value[7:6] bins=%0d,%0d,%0d,%0d",
+            write_cov[0],write_cov[1],write_cov[2],write_cov[3]);
 
         $display("I2C scenario: target READ byte and controller NACK");
         // Read a byte from the target and send NACK on the ninth clock.

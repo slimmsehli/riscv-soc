@@ -37,9 +37,20 @@ module uart_tb;
 
     logic [31:0] value, status;
     integer bitno;
+    logic [31:0] rng_state = 32'h1;
+    integer rx_cov [0:3];
+    task automatic random_byte(output logic [7:0] b);
+        rng_state = rng_state ^ (rng_state << 13);
+        rng_state = rng_state ^ (rng_state >> 17);
+        rng_state = rng_state ^ (rng_state << 5);
+        b = rng_state[7:0];
+    endtask
     initial begin
+        for (integer k=0; k<4; k=k+1) rx_cov[k]=0;
+        if ($value$plusargs("SEED=%d", rng_state)) begin end
+        if (rng_state == 0) rng_state = 32'h1;
         repeat (4) @(negedge clk); rst_n = 1;
-        $display("UART scenario: reset values and baud divisor");
+        $display("UART seed=%0d scenario: reset values and baud divisor", rng_state);
         bus_read32(4'h4, status);
         if ((status & 32'h0c) != 32'h04 || status[0]) $fatal(1, "bad reset status %x", status);
         bus_read32(4'hc, value);
@@ -92,6 +103,21 @@ module uart_tb;
             bus_read32(0, value);
             if (value[7:0] != (8'h20 + n)) $fatal(1, "RX wrap mismatch at %0d", n);
         end
+
+        $display("UART scenario: seeded randomized RX data, seed=%0d", rng_state);
+        for (integer n=0; n<48; n=n+1) begin
+            logic [7:0] random_data;
+            random_byte(random_data);
+            send_rx(random_data, 1);
+            bus_read32(0, value);
+            if (value[7:0] != random_data)
+                $fatal(1, "seed=%0d RX random[%0d] expected=%02x got=%02x", rng_state, n, random_data, value[7:0]);
+            rx_cov[random_data[7:6]] = rx_cov[random_data[7:6]] + 1;
+        end
+        for (integer k=0; k<4; k=k+1)
+            if (rx_cov[k] == 0) $fatal(1, "seed=%0d RX coverage bin %0d empty", rng_state, k);
+        $display("  UART RX coverage value[7:6] bins=%0d,%0d,%0d,%0d",
+            rx_cov[0],rx_cov[1],rx_cov[2],rx_cov[3]);
 
         $display("UART scenario: framing error, overrun, sticky status, and clear");
         send_rx(8'h55, 0);

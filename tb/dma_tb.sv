@@ -82,9 +82,22 @@ module dma_tb;
     endtask
 
     logic [31:0] status;
+    logic [31:0] rng_state = 32'h1;
+    integer length_cov [0:3], alignment_cov [0:3];
+    task automatic random_word(output logic [31:0] value);
+        rng_state = rng_state ^ (rng_state << 13);
+        rng_state = rng_state ^ (rng_state >> 17);
+        rng_state = rng_state ^ (rng_state << 5);
+        value = rng_state;
+    endtask
     initial begin
+        logic [31:0] random_value, rand_src, rand_dst, rand_len;
+        for (integer k=0; k<4; k=k+1) begin length_cov[k]=0; alignment_cov[k]=0; end
+        if ($value$plusargs("SEED=%d", rng_state)) begin end
+        if (rng_state == 0) rng_state = 32'h1;
         for (integer i = 0; i < 256; i = i + 1) mem[i] = 32'hcafe0000 + i;
         repeat (4) @(negedge clk); rst_n = 1;
+        $display("DMA seed=%0d", rng_state);
         $display("DMA scenario: zero-length completion");
 
         // Zero-byte request completes immediately.
@@ -134,6 +147,42 @@ module dma_tb;
                 cfg_wr(12, 2);
             end
         end
+
+        $display("DMA scenario: seeded random addresses, lengths, and contents");
+        for (integer test=0; test<40; test=test+1) begin
+            random_word(random_value);
+            rand_src = 32'h40 + (random_value[5:0]);
+            random_word(random_value);
+            rand_dst = 32'h200 + (random_value[5:0]);
+            random_word(random_value);
+            rand_len = 1 + (random_value % 32);
+            for (integer b=0; b<40; b=b+1) begin
+                random_word(random_value);
+                mem[(rand_src+b)>>2][((rand_src+b)&3)*8 +: 8] = random_value[7:0];
+            end
+            start_copy(rand_src, rand_dst, rand_len);
+            wait_done();
+            for (integer b=0; b<rand_len; b=b+1) begin
+                logic [7:0] source_byte, dest_byte;
+                source_byte=mem[(rand_src+b)>>2][((rand_src+b)&3)*8 +: 8];
+                dest_byte=mem[(rand_dst+b)>>2][((rand_dst+b)&3)*8 +: 8];
+                if (source_byte != dest_byte)
+                    $fatal(1, "seed=%0d transfer=%0d len=%0d byte=%0d mismatch", rng_state,test,rand_len,b);
+            end
+            if (rand_len == 1) length_cov[0]++;
+            else if (rand_len <= 7) length_cov[1]++;
+            else if (rand_len <= 16) length_cov[2]++;
+            else length_cov[3]++;
+            alignment_cov[{rand_src[1:0]!=0,rand_dst[1:0]!=0}]++;
+            cfg_wr(12, 2);
+        end
+        for (integer k=0; k<4; k=k+1) begin
+            if (length_cov[k] == 0) $fatal(1, "seed=%0d DMA length coverage bin %0d empty", rng_state,k);
+            if (alignment_cov[k] == 0) $fatal(1, "seed=%0d DMA alignment coverage bin %0d empty", rng_state,k);
+        end
+        $display("  DMA coverage lengths=%0d,%0d,%0d,%0d alignment=%0d,%0d,%0d,%0d",
+            length_cov[0],length_cov[1],length_cov[2],length_cov[3],
+            alignment_cov[0],alignment_cov[1],alignment_cov[2],alignment_cov[3]);
 
         $display("DMA scenario: single-byte copy and injected bus error");
         // Single byte transfer and a memory-bus error on destination write.

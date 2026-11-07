@@ -15,6 +15,14 @@ module soc_fabric_tb;
     logic [31:0] memory [0:255];
     logic stall_mem = 0;
     integer cpu_count = 0, dma_count = 0;
+    logic [31:0] rng_state = 32'h1;
+    integer sram_bank_cov [0:3];
+    task automatic random_word(output logic [31:0] value);
+        rng_state = rng_state ^ (rng_state << 13);
+        rng_state = rng_state ^ (rng_state >> 17);
+        rng_state = rng_state ^ (rng_state << 5);
+        value = rng_state;
+    endtask
 
     assign urdy = uv; assign ue = 0; assign ur = 32'h11112222;
     assign dcrdy = dcv; assign dce = 0; assign dcr = 32'h33334444;
@@ -55,6 +63,10 @@ module soc_fabric_tb;
     endtask
 
     initial begin
+        logic [31:0] random_value, address;
+        for (integer k=0;k<4;k=k+1) sram_bank_cov[k]=0;
+        if ($value$plusargs("SEED=%d", rng_state)) begin end
+        if (rng_state==0) rng_state=1;
         for (integer i=0;i<256;i=i+1) memory[i]=0;
         repeat (3) @(negedge clk); rst_n=1;
         cpu_xfer(32'h20, 1, 32'hdeadbeef, 4'hf, 0, 0);
@@ -86,7 +98,18 @@ module soc_fabric_tb;
         #1;
         if (dma_count == 0 || cpu_count < 16) $fatal(1, "arbitration fairness failed cpu=%0d dma=%0d", cpu_count, dma_count);
         cv=0; dv=0;
-        $display("SOC_FABRIC_PASS cpu_grants=%0d dma_grants=%0d", cpu_count, dma_count);
+        $display("Fabric scenario: seeded random SRAM transactions seed=%0d", rng_state);
+        for (integer n=0;n<48;n=n+1) begin
+            random_word(random_value);
+            address = {22'b0, random_value[9:2], 2'b00};
+            cpu_xfer(address, 1, random_value ^ 32'ha5c35a3c, 4'hf, 0, 0);
+            cpu_xfer(address, 0, 0, 0, 0, random_value ^ 32'ha5c35a3c);
+            sram_bank_cov[address[9:8]]++;
+        end
+        for (integer k=0;k<4;k=k+1)
+            if (!sram_bank_cov[k]) $fatal(1, "seed=%0d fabric SRAM bank bin %0d empty", rng_state,k);
+        $display("  Fabric SRAM address-bank bins=%0d,%0d,%0d,%0d",sram_bank_cov[0],sram_bank_cov[1],sram_bank_cov[2],sram_bank_cov[3]);
+        $display("SOC_FABRIC_PASS seed=%0d cpu_grants=%0d dma_grants=%0d", rng_state,cpu_count,dma_count);
         $finish;
     end
     initial begin #10000; $fatal(1, "fabric test timeout"); end

@@ -4,6 +4,7 @@ OBJCOPY := $(RISCV_PREFIX)objcopy
 VERILATOR ?= verilator
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
+SEEDS ?= 1 42 2025
 
 .PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-sim sim clean
 
@@ -11,16 +12,16 @@ core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
 
 uart-test: $(BUILD)/Vuart_tb
-	$(BUILD)/Vuart_tb
+	@set -e; for seed in $(SEEDS); do $(BUILD)/Vuart_tb +SEED=$$seed; done
 
 dma-test: $(BUILD)/Vdma_tb
-	$(BUILD)/Vdma_tb
+	@set -e; for seed in $(SEEDS); do $(BUILD)/Vdma_tb +SEED=$$seed; done
 
 i2c-test: $(BUILD)/Vi2c_tb
-	$(BUILD)/Vi2c_tb
+	@set -e; for seed in $(SEEDS); do $(BUILD)/Vi2c_tb +SEED=$$seed; done
 
 soc-fabric-test: $(BUILD)/Vsoc_fabric_tb
-	$(BUILD)/Vsoc_fabric_tb
+	@set -e; for seed in $(SEEDS); do $(BUILD)/Vsoc_fabric_tb +SEED=$$seed; done
 
 soc-sram-test: $(BUILD)/Vsoc_sram_tb
 	$(BUILD)/Vsoc_sram_tb
