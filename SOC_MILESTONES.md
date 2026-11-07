@@ -7,7 +7,7 @@ This plan turns the requirements in [SOC_SPEC.md](SOC_SPEC.md) into six implemen
 | # | Milestone | Main outcome | Sign-off |
 |---:|---|---|---|
 | 1 | RISC-V core and toolchain readiness | **Complete** — pinned core, working Verilator and RISC-V software flow, standalone core smoke program | Core boots and passes software checks |
-| 2 | UART IP | UART RTL and self-checking Verilator testbench | UART behavior validated and signed off |
+| 2 | UART IP | **Complete** — UART RTL and self-checking Verilator testbench | UART behavior validated and signed off |
 | 3 | DMA IP | DMA RTL and self-checking Verilator testbench | DMA behavior validated and signed off |
 | 4 | I2C master IP | I2C master RTL and self-checking Verilator testbench | I2C behavior validated and signed off |
 | 5 | SoC infrastructure | SRAM, interconnect, decode, arbitration, wrappers, and remaining integration blocks | Infrastructure tests and interfaces ready for assembly |
