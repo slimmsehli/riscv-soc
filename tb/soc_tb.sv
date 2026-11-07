@@ -5,6 +5,12 @@ module soc_tb;
     logic uart_rx = 1;
     logic [15:0] gpio_in = 16'h5aa5;
     wire [15:0] gpio_out, gpio_oe;
+    logic spi_miso = 1;
+    wire spi_mosi, spi_sck;
+    wire [3:0] spi_cs_n;
+    logic [7:0] spi_seen_tx = 0;
+    integer spi_sample_count = 0;
+    logic [7:0] spi_target_data = 8'ha6;
     wire uart_tx;
     tri1 i2c_scl, i2c_sda;
     logic target_sda_low = 0, target_scl_low = 0;
@@ -23,6 +29,7 @@ module soc_tb;
 
     soc_top #(.SRAM_INIT_FILE("build/soc_test.hex")) dut(
         .clk, .rst_n, .uart_rx, .uart_tx, .gpio_in, .gpio_out, .gpio_oe,
+        .spi_miso, .spi_mosi, .spi_sck, .spi_cs_n,
         .i2c_scl, .i2c_sda, .cpu_trap()
     );
 
@@ -78,6 +85,16 @@ module soc_tb;
             i2c_read_bits <= i2c_read_bits + 1;
         end else if (rst_n && target_bit == 8) target_bit <= 9;
     end
+    always @(posedge spi_sck) begin
+        if (rst_n && spi_cs_n != 4'hf) begin
+            spi_seen_tx = {spi_seen_tx[6:0],spi_mosi};
+            spi_sample_count = spi_sample_count + 1;
+        end
+    end
+    always @(negedge spi_sck) begin
+        if (rst_n && spi_cs_n != 4'hf && spi_sample_count < 8)
+            spi_miso = spi_target_data[7-spi_sample_count];
+    end
     always @(negedge i2c_sda) if (rst_n && i2c_scl) i2c_start_count <= i2c_start_count + 1;
     always @(posedge i2c_sda) if (rst_n && i2c_scl) i2c_stop_count <= i2c_stop_count + 1;
     always @(negedge i2c_scl) begin
@@ -112,6 +129,8 @@ module soc_tb;
         if (target_written != 8'h5a) $fatal(1, "I2C target saw %02x", target_written);
         if (gpio_out != 16'ha55a || gpio_oe != 16'hffff)
             $fatal(1, "GPIO output/direction mismatch out=%04x oe=%04x",gpio_out,gpio_oe);
+        if (spi_seen_tx != 8'h3c || spi_sample_count != 8 || spi_cs_n != 4'hf)
+            $fatal(1,"SPI pin transaction mismatch tx=%02x bits=%0d cs_n=%x",spi_seen_tx,spi_sample_count,spi_cs_n);
         if (i2c_start_count < 2 || i2c_stop_count < 2 || i2c_read_bits != 8)
             $fatal(1, "I2C bus sequence incomplete starts=%0d stops=%0d read_bits=%0d",
                 i2c_start_count, i2c_stop_count, i2c_read_bits);
@@ -121,8 +140,8 @@ module soc_tb;
             if (copied != (8'h31 + b*7)) $fatal(1, "DMA memory byte %0d got %02x", b, copied);
         end
         if (dut.cpu_trap) $fatal(1, "CPU trapped");
-        $display("SOC_TEST_PASS uart_bytes=%0d gpio_out=%04x gpio_oe=%04x dma_bytes=13 i2c_starts=%0d i2c_stops=%0d",
-            uart_count, gpio_out, gpio_oe, i2c_start_count, i2c_stop_count);
+        $display("SOC_TEST_PASS uart_bytes=%0d gpio=%04x spi_tx=%02x dma_bytes=13 i2c_starts=%0d i2c_stops=%0d",
+            uart_count, gpio_out, spi_seen_tx, i2c_start_count, i2c_stop_count);
         $finish;
     end
     initial begin #30000000; $fatal(1, "SoC testbench timeout"); end

@@ -23,4 +23,5 @@ For every row: specify the register and pin contract; implement RTL and isolated
 ## Current status
 
 - **8.1 GPIO Complete** — standalone bus/pin tests and the integrated C test pass; all 16 pins are exposed at `soc_top`.
-- 8.2–8.9 Pending
+- **8.2 SPI master Complete** — all four modes and chip selects pass the standalone behavioral-target test; the C-driven SoC test checks an SPI transfer and received data.
+- 8.3–8.9 Pending

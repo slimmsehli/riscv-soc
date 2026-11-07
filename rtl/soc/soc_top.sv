@@ -9,6 +9,10 @@ module soc_top #(
     input logic [15:0] gpio_in,
     output logic [15:0] gpio_out,
     output logic [15:0] gpio_oe,
+    input logic spi_miso,
+    output logic spi_mosi,
+    output logic spi_sck,
+    output logic [3:0] spi_cs_n,
     inout wire i2c_scl,
     inout wire i2c_sda,
     output logic cpu_trap
@@ -35,6 +39,9 @@ module soc_top #(
     logic gpio_valid, gpio_ready, gpio_error, gpio_write;
     logic [3:0] gpio_addr, gpio_wstrb;
     logic [31:0] gpio_wdata, gpio_rdata;
+    logic spi_valid, spi_ready, spi_error, spi_write;
+    logic [3:0] spi_addr, spi_wstrb;
+    logic [31:0] spi_wdata, spi_rdata;
     logic mem_valid, mem_ready, mem_write, mem_error;
     logic [31:0] mem_addr, mem_wdata, mem_rdata;
     logic [3:0] mem_wstrb;
@@ -62,6 +69,9 @@ module soc_top #(
         .bus_addr(gpio_addr), .bus_write(gpio_write), .bus_wdata(gpio_wdata),
         .bus_wstrb(gpio_wstrb), .bus_rdata(gpio_rdata), .bus_error(gpio_error),
         .gpio_in, .gpio_out, .gpio_oe);
+    spi_master spi(.clk, .rst_n(core_rst_n), .bus_valid(spi_valid), .bus_ready(spi_ready),
+        .bus_addr(spi_addr), .bus_write(spi_write), .bus_wdata(spi_wdata), .bus_wstrb(spi_wstrb),
+        .bus_rdata(spi_rdata), .bus_error(spi_error), .spi_miso, .spi_mosi, .spi_sck, .spi_cs_n);
     soc_sram #(.WORDS(SRAM_WORDS), .INIT_FILE(SRAM_INIT_FILE)) sram(.clk,
         .valid(mem_valid), .ready(mem_ready), .addr(mem_addr), .write(mem_write), .wdata(mem_wdata),
         .wstrb(mem_wstrb), .rdata(mem_rdata), .error(mem_error));
@@ -76,5 +86,6 @@ module soc_top #(
         .dma_cfg_wstrb, .dma_cfg_rdata, .dma_cfg_error,
         .i2c_valid, .i2c_ready, .i2c_addr, .i2c_write, .i2c_wdata, .i2c_wstrb, .i2c_rdata, .i2c_error,
         .gpio_valid, .gpio_ready, .gpio_addr, .gpio_write, .gpio_wdata, .gpio_wstrb, .gpio_rdata, .gpio_error,
+        .spi_valid, .spi_ready, .spi_addr, .spi_write, .spi_wdata, .spi_wstrb, .spi_rdata, .spi_error,
         .mem_valid, .mem_ready, .mem_addr, .mem_wdata, .mem_write, .mem_wstrb, .mem_rdata, .mem_error);
 endmodule

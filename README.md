@@ -1,6 +1,6 @@
 # RISC-V SoC
 
-A small RV32I system-on-chip implemented in SystemVerilog. It integrates the open-source PicoRV32 core with locally implemented UART, DMA, and I2C master IP, shared SRAM, and a CPU/DMA bus fabric. The project includes standalone IP testbenches and a C-driven, Verilator-based SoC simulation.
+A small RV32I system-on-chip implemented in SystemVerilog. It integrates the open-source PicoRV32 core with locally implemented UART, DMA, I2C, GPIO, and SPI IP, shared SRAM, and a CPU/DMA bus fabric. The project includes standalone IP testbenches and a C-driven, Verilator-based SoC simulation.
 
 ## Features
 
@@ -11,6 +11,7 @@ A small RV32I system-on-chip implemented in SystemVerilog. It integrates the ope
 - Memory-to-memory DMA with byte-accurate unaligned transfers
 - Open-drain I2C master with clock-stretch support
 - 16-pin GPIO with synchronized inputs and per-pin direction
+- SPI master with four CPOL/CPHA modes, four chip selects, and programmable clock divider
 - Freestanding RV32I C build and `$readmemh` program loading
 - Seeded randomized tests, functional coverage bins, reset/stall/boundary checks, Verilator lint, Icarus elaboration, and Yosys synthesis checks
 
@@ -24,6 +25,7 @@ A small RV32I system-on-chip implemented in SystemVerilog. It integrates the ope
 | I2C master | `0x1000_2000` | 4 KiB |
 | Simulation completion mailbox | `0x1000_3000` | Test use |
 | GPIO | `0x1000_4000` | 4 KiB |
+| SPI master | `0x1000_5000` | 4 KiB |
 
 The full register definitions and bus contract are in [SOC_SPEC.md](SOC_SPEC.md).
 
@@ -62,13 +64,13 @@ Run the integrated C program in the SoC testbench:
 make sim
 ```
 
-The target compiles the RV32I software, converts it to the SRAM hex format, loads it into SRAM with `$readmemh`, and runs the SoC in Verilator. The testbench checks the UART signature, DMA destination bytes, I2C transactions, and software completion marker.
+The target compiles the RV32I software, converts it to the SRAM hex format, loads it into SRAM with `$readmemh`, and runs the SoC in Verilator. The testbench checks the UART signature, DMA destination bytes, I2C transactions, GPIO pins, SPI transfer, and software completion marker.
 
 Run all unit, infrastructure, lint, elaboration, synthesis, and integration checks:
 
 ```sh
 make clean
-make core-smoke uart-test dma-test i2c-test gpio-test soc-sram-test soc-fabric-test soc-lint soc-iverilog soc-synth sim
+make core-smoke uart-test dma-test i2c-test gpio-test spi-test soc-sram-test soc-fabric-test soc-lint soc-iverilog soc-synth sim
 ```
 
 UART, DMA, I2C, and fabric tests run seeds `1`, `42`, and `2025` by default. Override the set for a target, for example:

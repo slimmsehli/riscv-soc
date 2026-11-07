@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Build a small, reproducible RISC-V system-on-chip in synthesizable RTL. The SoC integrates an open-source RISC-V core, on-chip memory, and three locally developed peripheral IP blocks: UART, DMA, and I2C. Each IP has an independent self-checking testbench, and an integrated SoC testbench boots a compiled C program loaded into memory from a hexadecimal file.
+Build a small, reproducible RISC-V system-on-chip in synthesizable RTL. The SoC integrates an open-source RISC-V core, on-chip memory, and locally developed UART, DMA, I2C, GPIO, and SPI peripheral IP. Each IP has an independent self-checking testbench, and an integrated SoC testbench boots a compiled C program loaded into memory from a hexadecimal file.
 
 This document defines the required architecture, interfaces, register maps, software flow, verification, and completion criteria. Implementations may add features while preserving the interfaces and behavior specified here.
 
@@ -14,11 +14,11 @@ This document defines the required architecture, interfaces, register maps, soft
 - **Interconnect:** A small, single-request-at-a-time, 32-bit ready/valid peripheral bus. The CPU wrapper adapts PicoRV32's memory interface to the bus. The DMA is a second bus master; a simple arbiter grants one master at a time and holds the grant until completion. No cache or virtual memory is required.
 - **Clock/reset:** One clock domain. Active-low asynchronous reset input, synchronously deasserted internally. All bus and peripheral state resets deterministically.
 - **Memory:** 64 KiB byte-addressable on-chip SRAM model/RTL at `0x0000_0000`–`0x0000_FFFF`, initialized by the simulation testbench from a `$readmemh` file. The same memory is used for program/data and DMA buffers. No external boot ROM is required.
-- **Initial serial/I2C scope:** UART is a synthesizable transmitter and receiver. I2C is a single-controller master with open-drain signaling, standard-mode timing, and byte transfers. DMA performs memory-to-memory copies. These are useful baseline features that keep the first implementation tractable.
+- **Initial peripheral scope:** UART is a synthesizable transmitter and receiver. I2C is a single-controller master with open-drain signaling, standard-mode timing, and byte transfers. DMA performs memory-to-memory copies. GPIO provides synchronized inputs and outputs, and SPI provides a programmed four-mode master. These baseline features keep the first implementation tractable.
 
 ## 3. Top-level behavior
 
-The CPU starts at address `0x0000_0000`. The SoC testbench loads the compiled program image into SRAM before releasing reset. A software program exercises UART output, DMA copy, and I2C master transactions against a behavioral I2C target in the testbench. The testbench checks externally visible results and stops on a software success/failure marker or timeout.
+The CPU starts at address `0x0000_0000`. The SoC testbench loads the compiled program image into SRAM before releasing reset. A software program exercises UART output, DMA copy, I2C master transactions against a behavioral I2C target, GPIO registers, and SPI transfers against a behavioral SPI target. The testbench checks externally visible results and stops on a software success/failure marker or timeout.
 
 Top-level module: `soc_top`.
 
@@ -33,6 +33,10 @@ Required ports:
 | `gpio_in[15:0]` | input | 16 external GPIO inputs |
 | `gpio_out[15:0]` | output | GPIO output values |
 | `gpio_oe[15:0]` | output | GPIO output enables; 1=drive output, 0=input/high impedance at board wrapper |
+| `spi_miso` | input | SPI target data into the master |
+| `spi_mosi` | output | SPI master data to the target |
+| `spi_sck` | output | SPI serial clock |
+| `spi_cs_n[3:0]` | output | Four active-low SPI chip selects |
 | `i2c_scl` | inout | Open-drain I2C clock; drive low or release |
 | `i2c_sda` | inout | Open-drain I2C data; drive low or release |
 
@@ -49,6 +53,7 @@ All addresses are byte addresses. Bus accesses are 32-bit aligned; byte enables 
 | DMA | `0x1000_1000` | 4 KiB | Register interface below |
 | I2C | `0x1000_2000` | 4 KiB | Register interface below |
 | GPIO | `0x1000_4000` | 4 KiB | 16-pin input/output/direction block |
+| SPI | `0x1000_5000` | 4 KiB | SPI master register interface |
 
 The decoder uses the high address bits and rejects addresses outside these windows. Peripheral registers occupy the first 16 bytes of each window; other offsets read as zero and writes have no effect (or return an access error, consistently documented and tested).
 
@@ -111,9 +116,22 @@ The first expansion GPIO block has 16 pins. Inputs pass through two clocked sync
 
 Writes honor the common bus byte strobes. The baseline has no GPIO interrupts, pull-up controls, or per-pin alternate functions.
 
+### 6.5 SPI master
+
+The SPI master performs one 8-bit, MSB-first transfer per command. It supports all four CPOL/CPHA modes, four active-low chip-select outputs, a programmable half-period divider, and one transmit/receive data register. The selected chip select is asserted only for the active transfer. Reset selects chip select 0, mode 0, divider 2, and idle-low SCK.
+
+| Offset | Name | Access | Definition |
+|---:|---|---|---|
+| `0x00` | `DATA` | R/W | Write transmit byte; read last received byte in bits 7:0 |
+| `0x04` | `CTRL_STATUS` | R/W | write bit 0=START, bit 1=clear DONE, bit 3=clear ERROR. Read bit 0=BUSY, bit 1=DONE, bit 2=RX_VALID (same sticky completion indication as DONE), bit 3=ERROR |
+| `0x08` | `DIV` | R/W | SCK half-period in system clocks; minimum 2 |
+| `0x0C` | `CONFIG` | R/W | bits 3:0 one-hot active chip select; bit 4=CPOL; bit 5=CPHA |
+
+Writing a non-one-hot chip-select value sets ERROR. Transfers are byte-wide and polled; there is no FIFO, slave mode, interrupt, or continuous chip-select mode in this first version.
+
 ## 7. Reset values
 
-Reset clears bus state, CPU-facing wrapper state, DMA state, FIFOs, I2C command state, and error/status flags. SRAM contents are not reset by RTL. In simulation, memory is initialized from the hex image before reset is released. UART and I2C output pins are released/high while idle. Reset behavior is covered by each relevant testbench.
+Reset clears bus state, CPU-facing wrapper state, DMA state, FIFOs, I2C command state, SPI transfer state, and error/status flags. SRAM contents are not reset by RTL. In simulation, memory is initialized from the hex image before reset is released. UART and I2C output pins are released/high while idle; SPI chip selects are inactive and SCK is at its reset polarity. Reset behavior is covered by each relevant testbench.
 
 ## 8. Repository and build deliverables
 
@@ -160,11 +178,19 @@ All tests are self-checking, deterministic, and terminate with a nonzero failure
 - Test clock stretching, disabled controller, invalid/overlapping command, and status clearing.
 - Check that neither master nor target actively drives the bus high.
 
+### GPIO testbench
+
+- Verify reset direction/output values, synchronized input reads, independent pin directions, byte strobes, and bus errors.
+
+### SPI testbench
+
+- Exercise all four CPOL/CPHA modes with a behavioral target, check byte ordering and all chip selects, and verify divider clamp, status, and invalid configuration handling.
+
 ### Integrated SoC testbench
 
 - Load the software hex image into SRAM with `$readmemh`, then release reset and wait for a bounded completion timeout.
-- Run a C program from address zero. It must transmit a UART signature; perform a DMA copy and verify memory; issue I2C write/read against a behavioral target; and report success/failure through a documented test-only completion mechanism (e.g. a dedicated simulation address or wrapper signal).
-- Independently check UART pin output, DMA result, I2C bus transactions, and completion status. A software success marker alone is insufficient.
+- Run a C program from address zero. It must transmit a UART signature; perform a DMA copy and verify memory; issue I2C write/read against a behavioral target; access GPIO; transfer SPI data against a behavioral target; and report success/failure through a documented test-only completion mechanism (e.g. a dedicated simulation address or wrapper signal).
+- Independently check UART pin output, DMA result, I2C bus transactions, GPIO outputs, SPI pin/data results, and completion status. A software success marker alone is insufficient.
 - Include at least one negative/error path in peripheral unit tests. The integrated test must fail on timeout, bus error, incorrect output, or incorrect memory contents.
 
 ## 10. Completion criteria
