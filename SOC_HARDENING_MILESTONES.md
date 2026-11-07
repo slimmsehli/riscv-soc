@@ -14,6 +14,6 @@ The six implementation milestones are complete. This follow-on list hardens veri
 - **7.1 Complete** — UART, DMA, I2C, and fabric benches accept `+SEED=<decimal>`, print seeds and coverage bins, and the Makefile runs seeds 1, 42, and 2025 by default.
 - **7.2 Complete** — strict Verilator lint, Icarus top elaboration, full-depth SRAM inference, and reduced-depth generic SoC synthesis pass. A production-depth generic gate mapping is intentionally not used because it would expand the 64 KiB SRAM into hundreds of thousands of generic memory bits rather than a target SRAM macro.
 - **7.3 Complete** — reset during UART TX, DMA read stall, I2C START, and fabric ownership; 32-cycle bus stalls; DMA SRAM-end crossing; existing unmapped and alignment boundaries pass.
-- 7.4 Pending
+- **7.4 Complete** — tool versions, regression results, commands, synthesis scope, lint waivers, and known limits are recorded in `SOC_VERIFICATION_REPORT.md`.
 
 Run this item with `make clean && make uart-test dma-test i2c-test soc-fabric-test`. Override the deterministic seed matrix with `make ... SEEDS="7 19 1234"`. A seed run fails if its required functional bins are not hit.
