@@ -55,7 +55,6 @@ module soc_bus_fabric (
     logic [3:0] selected_wstrb;
     logic target_ready, target_error;
     logic [31:0] target_rdata;
-    logic cpu_target, dma_target;
 
     always_comb begin
         choose_dma = dma_valid && (!cpu_valid || (cpu_streak >= 16));
@@ -72,7 +71,6 @@ module soc_bus_fabric (
             selected_write = choose_dma ? dma_write : cpu_write;
             selected_wstrb = choose_dma ? dma_wstrb : cpu_wstrb;
         end
-        cpu_target = 0; dma_target = 0;
         uart_valid = 0; dma_cfg_valid = 0; i2c_valid = 0;
         uart_addr = selected_addr[3:0]; dma_cfg_addr = selected_addr[3:0]; i2c_addr = selected_addr[3:0];
         uart_write = selected_write; dma_cfg_write = selected_write; i2c_write = selected_write;

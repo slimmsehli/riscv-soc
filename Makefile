@@ -2,11 +2,15 @@ RISCV_PREFIX ?= riscv64-unknown-elf-
 CC := $(RISCV_PREFIX)gcc
 OBJCOPY := $(RISCV_PREFIX)objcopy
 VERILATOR ?= verilator
+IVERILOG ?= iverilog
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
+SOC_RTL := $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
+	rtl/soc/soc_reset_sync.sv rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv \
+	rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv
 SEEDS ?= 1 42 2025
 
-.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-sim sim clean
+.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-iverilog soc-sim sim clean
 
 core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
@@ -27,9 +31,13 @@ soc-sram-test: $(BUILD)/Vsoc_sram_tb
 	$(BUILD)/Vsoc_sram_tb
 
 soc-lint:
-	$(VERILATOR) --lint-only --top-module soc_top -Wno-fatal $(CORE) rtl/uart/uart_ip.sv \
-		rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv rtl/soc/soc_reset_sync.sv \
-		rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv
+	$(VERILATOR) --lint-only --top-module soc_top -Wall \
+		-Wno-DECLFILENAME -Wno-PINCONNECTEMPTY -Wno-GENUNNAMED -Wno-BLKSEQ \
+		-Wno-UNUSEDSIGNAL -Wno-SYNCASYNCNET $(SOC_RTL)
+
+soc-iverilog:
+	mkdir -p $(BUILD)
+	$(IVERILOG) -g2012 -s soc_top -o $(BUILD)/soc_top.vvp $(SOC_RTL)
 
 soc-sim: $(BUILD)/Vsoc_tb
 	$(BUILD)/Vsoc_tb

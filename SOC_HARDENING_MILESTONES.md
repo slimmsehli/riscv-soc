@@ -12,6 +12,7 @@ The six implementation milestones are complete. This follow-on list hardens veri
 ## Current status
 
 - **7.1 Complete** — UART, DMA, I2C, and fabric benches accept `+SEED=<decimal>`, print seeds and coverage bins, and the Makefile runs seeds 1, 42, and 2025 by default.
-- 7.2–7.4 Pending
+- **7.2 In progress** — strict Verilator lint and Icarus top elaboration pass; Yosys is not installed and package installation was blocked by environment permissions, so synthesis is pending.
+- 7.3–7.4 Pending
 
 Run this item with `make clean && make uart-test dma-test i2c-test soc-fabric-test`. Override the deterministic seed matrix with `make ... SEEDS="7 19 1234"`. A seed run fails if its required functional bins are not hit.

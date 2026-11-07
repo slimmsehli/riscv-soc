@@ -8,7 +8,7 @@ module soc_sram_tb;
     wire ready, error;
     wire [31:0] rdata;
     soc_sram #(.WORDS(4), .INIT_FILE("tb/sram_init.hex")) dut
-        (.clk, .rst_n(1'b1), .valid, .ready, .addr, .write, .wdata, .wstrb, .rdata, .error);
+        (.clk, .valid, .ready, .addr, .write, .wdata, .wstrb, .rdata, .error);
 
     task automatic read_word(input logic [31:0] a, input logic [31:0] expected);
         @(negedge clk); valid=1; write=0; addr=a; #1;

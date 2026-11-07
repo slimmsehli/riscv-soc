@@ -3,7 +3,6 @@ module soc_sram #(
     parameter INIT_FILE = ""
 ) (
     input logic clk,
-    input logic rst_n,
     input logic valid,
     output logic ready,
     input logic [31:0] addr,

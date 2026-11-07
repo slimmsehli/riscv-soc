@@ -21,7 +21,8 @@ module i2c_master (
     } state_t;
     state_t state;
     logic [7:0] tx_data, rx_data;
-    logic [7:0] shift_data;
+    logic [6:0] tx_shift;
+    logic [6:0] rx_shift;
     logic [3:0] bit_index;
     logic [31:0] divider, timer;
     logic enabled, busy, done, ack_error, ack_after_read;
@@ -48,7 +49,7 @@ module i2c_master (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
-            tx_data <= 0; rx_data <= 0; shift_data <= 0; bit_index <= 0;
+            tx_data <= 0; rx_data <= 0; tx_shift <= 0; rx_shift <= 0; bit_index <= 0;
             divider <= 250; timer <= 0;
             enabled <= 1; busy <= 0; done <= 0; ack_error <= 0;
             ack_after_read <= 0; scl_low <= 0; sda_low <= 0;
@@ -71,8 +72,8 @@ module i2c_master (
                                 timer <= divider - 1'b1;
                                 bit_index <= 0;
                                 if (cfg_wdata[1]) begin state <= STOP_LOW; scl_low <= 1; sda_low <= 1; end
-                                else if (cfg_wdata[2]) begin state <= WRITE_SETUP; scl_low <= 1; sda_low <= !tx_data[7]; shift_data <= tx_data; end
-                                else if (cfg_wdata[3]) begin state <= READ_SETUP; scl_low <= 1; sda_low <= 0; shift_data <= 0; ack_after_read <= cfg_wdata[4]; end
+                                else if (cfg_wdata[2]) begin state <= WRITE_SETUP; scl_low <= 1; sda_low <= !tx_data[7]; tx_shift <= tx_data[6:0]; end
+                                else if (cfg_wdata[3]) begin state <= READ_SETUP; scl_low <= 1; sda_low <= 0; rx_shift <= 0; ack_after_read <= cfg_wdata[4]; end
                                 else if (cfg_wdata[0]) begin state <= START_HOLD; scl_low <= 0; sda_low <= 0; end
                             end
                         end
@@ -99,7 +100,7 @@ module i2c_master (
                         WRITE_HIGH: if (i2c_scl_in) begin
                             scl_low <= 1;
                             if (bit_index == 7) begin state <= WRITE_ACK_SETUP; sda_low <= 0; end
-                            else begin bit_index <= bit_index + 1'b1; shift_data <= {shift_data[6:0], 1'b0}; sda_low <= !shift_data[6]; state <= WRITE_SETUP; end
+                            else begin bit_index <= bit_index + 1'b1; tx_shift <= {tx_shift[5:0], 1'b0}; sda_low <= !tx_shift[6]; state <= WRITE_SETUP; end
                             timer <= divider - 1'b1;
                         end else timer <= 0;
                         WRITE_ACK_SETUP: begin scl_low <= 0; state <= WRITE_ACK_HIGH; timer <= divider - 1'b1; end
@@ -109,9 +110,9 @@ module i2c_master (
                         end else timer <= 0;
                         READ_SETUP: begin scl_low <= 0; state <= READ_HIGH; timer <= divider - 1'b1; end
                         READ_HIGH: if (i2c_scl_in) begin
-                            shift_data <= {shift_data[6:0], i2c_sda_in};
+                            rx_shift <= {rx_shift[5:0], i2c_sda_in};
                             scl_low <= 1;
-                            if (bit_index == 7) begin state <= READ_ACK_SETUP; rx_data <= {shift_data[6:0], i2c_sda_in}; end
+                            if (bit_index == 7) begin state <= READ_ACK_SETUP; rx_data <= {rx_shift[6:0], i2c_sda_in}; end
                             else begin bit_index <= bit_index + 1'b1; state <= READ_SETUP; end
                             timer <= divider - 1'b1;
                         end else timer <= 0;
