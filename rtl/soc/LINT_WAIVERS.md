@@ -12,4 +12,4 @@
 
 New warning categories remain fatal. Recheck this table when the core, lint version, or integration changes.
 
-Yosys is not currently available in the environment, so synthesis has not yet been run. `make soc-iverilog` provides a second elaboration check, not a substitute for synthesis.
+`make soc-synth` checks memory inference at the specified 16K-word depth without mapping it (525,312 inferred memory bits across SRAM and UART FIFOs), then runs complete generic synthesis with a 64-word SRAM. Both Yosys `check` passes report zero problems. The reduced-depth run validates integrated control logic and tool compatibility; it is not a physical SRAM macro mapping or an area/timing result for the 64 KiB implementation. Yosys reports expected limitations for behavioral tri-state I2C pins and maps small UART FIFOs to registers.

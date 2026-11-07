@@ -3,6 +3,7 @@ CC := $(RISCV_PREFIX)gcc
 OBJCOPY := $(RISCV_PREFIX)objcopy
 VERILATOR ?= verilator
 IVERILOG ?= iverilog
+YOSYS ?= yosys
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
 SOC_RTL := $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
@@ -10,7 +11,7 @@ SOC_RTL := $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
 	rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv
 SEEDS ?= 1 42 2025
 
-.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-iverilog soc-sim sim clean
+.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-iverilog soc-synth soc-sim sim clean
 
 core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
@@ -38,6 +39,13 @@ soc-lint:
 soc-iverilog:
 	mkdir -p $(BUILD)
 	$(IVERILOG) -g2012 -s soc_top -o $(BUILD)/soc_top.vvp $(SOC_RTL)
+
+soc-synth:
+	mkdir -p $(BUILD)
+	$(YOSYS) -Q -l $(BUILD)/yosys_memory.log -p 'read_verilog -sv $(SOC_RTL); hierarchy -check -top soc_top; synth -top soc_top -run begin:coarse; check; stat' > /dev/null
+	$(YOSYS) -Q -l $(BUILD)/yosys_soc.log -p 'read_verilog -sv $(SOC_RTL); chparam -set SRAM_WORDS 64 soc_top; hierarchy -check -top soc_top; synth -top soc_top; check; stat' > /dev/null
+	@echo "Full-depth inference: $$(rg 'Number of memories:|Number of memory bits:|Found and reported' $(BUILD)/yosys_memory.log | tail -3 | tr '\n' ' ')"
+	@echo "Reduced-depth generic synthesis: $$(rg 'Number of cells:|Found and reported' $(BUILD)/yosys_soc.log | tail -3 | tr '\n' ' ')"
 
 soc-sim: $(BUILD)/Vsoc_tb
 	$(BUILD)/Vsoc_tb

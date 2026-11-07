@@ -1,5 +1,6 @@
 module soc_top #(
-    parameter SRAM_INIT_FILE = ""
+    parameter SRAM_INIT_FILE = "",
+    parameter integer SRAM_WORDS = 16384
 ) (
     input logic clk,
     input logic rst_n,
@@ -51,7 +52,7 @@ module soc_top #(
         .cfg_addr(i2c_addr), .cfg_write(i2c_write), .cfg_wdata(i2c_wdata), .cfg_wstrb(i2c_wstrb),
         .cfg_rdata(i2c_rdata), .cfg_error(i2c_error), .i2c_scl_in(i2c_scl),
         .i2c_scl_low, .i2c_sda_in(i2c_sda), .i2c_sda_low);
-    soc_sram #(.WORDS(16384), .INIT_FILE(SRAM_INIT_FILE)) sram(.clk,
+    soc_sram #(.WORDS(SRAM_WORDS), .INIT_FILE(SRAM_INIT_FILE)) sram(.clk,
         .valid(mem_valid), .ready(mem_ready), .addr(mem_addr), .write(mem_write), .wdata(mem_wdata),
         .wstrb(mem_wstrb), .rdata(mem_rdata), .error(mem_error));
 

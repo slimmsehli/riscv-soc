@@ -8,6 +8,7 @@ Verification targets:
 - `make soc-fabric-test`: address decode, unmapped errors, DMA peripheral rejection, stalled-request ownership, and CPU/DMA fairness.
 - `make soc-lint`: whole-top Verilator `-Wall` lint. Waivers are limited to reviewed upstream style/debug signals, intentionally open optional core pins, and the asynchronous-assert/synchronous-release reset pattern.
 - `make soc-iverilog`: independent SystemVerilog top elaboration with Icarus Verilog.
+- `make soc-synth`: Yosys full-depth memory inference/check, plus complete generic SoC synthesis with a reduced 64-word SRAM to avoid mapping 64 KiB of behavioral SRAM into generic flip-flops. Logs are kept under `build/`.
 - `make sim`: compile `sw/soc_test.c` for RV32I, link at SRAM address zero, convert to little-endian word hex, load it through `$readmemh`, and run the complete SoC in Verilator.
 
 UART, DMA, I2C, and fabric tests run with deterministic seeds 1, 42, and 2025 by default. Override with `make dma-test SEEDS="7 19 1234"`. Test logs include scenario labels, seed values, and functional bin counts; each run fails if a required bin is empty.
