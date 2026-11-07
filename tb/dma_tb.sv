@@ -19,9 +19,10 @@ module dma_tb;
     logic [31:0] mem [0:255];
     logic prefer_cpu = 0;
     integer bus_cycle = 0;
+    logic force_stall = 0;
     wire grant_cpu = cpu_valid && (!dma_valid || prefer_cpu);
     wire grant_dma = dma_valid && !grant_cpu;
-    wire dma_accept = grant_dma && (bus_cycle[1:0] != 1);
+    wire dma_accept = grant_dma && !force_stall && (bus_cycle[1:0] != 1);
     assign cpu_ready = grant_cpu;
 
     dma_ip dut(.clk, .rst_n, .cfg_valid, .cfg_ready, .cfg_addr, .cfg_write,
@@ -35,7 +36,8 @@ module dma_tb;
         dma_error = 0;
         dma_rdata = 0;
         if (grant_dma) begin
-            dma_rdata = mem[dma_addr[9:2]];
+            if (dma_addr >= 1024) dma_error = 1;
+            else dma_rdata = mem[dma_addr[9:2]];
             if (inject_error && dma_write && dma_addr == error_addr) dma_error = 1;
         end
     end
@@ -98,6 +100,18 @@ module dma_tb;
         for (integer i = 0; i < 256; i = i + 1) mem[i] = 32'hcafe0000 + i;
         repeat (4) @(negedge clk); rst_n = 1;
         $display("DMA seed=%0d", rng_state);
+
+        $display("DMA boundary: reset during a stalled read request");
+        force_stall=1;
+        cfg_wr(0, 32'h40); cfg_wr(4, 32'h80); cfg_wr(8, 8); cfg_wr(12, 1);
+        wait (dma_valid);
+        repeat (4) @(posedge clk);
+        rst_n=0; repeat (3) @(negedge clk);
+        if (dma_valid) $fatal(1, "DMA bus request remained active after reset");
+        rst_n=1; force_stall=0; repeat (3) @(negedge clk);
+        cfg_rd(12, status);
+        if (status != 0) $fatal(1, "DMA state did not reset: %x", status);
+
         $display("DMA scenario: zero-length completion");
 
         // Zero-byte request completes immediately.
@@ -189,6 +203,14 @@ module dma_tb;
         start_copy(32'h20, 32'h40, 1); wait_done();
         if (mem[16][0 +: 8] != mem[8][0 +: 8]) $fatal(1, "single byte copy failed");
         cfg_wr(12, 2);
+
+        $display("DMA boundary: source range crosses end of SRAM");
+        start_copy(32'h3fc, 32'h100, 8);
+        cfg_rd(12, status);
+        while (status[0]) cfg_rd(12, status);
+        if (!status[2] || status[1]) $fatal(1, "out-of-range DMA did not report error: %x", status);
+        cfg_wr(12, 4);
+
         inject_error = 1; error_addr = 32'hc0;
         start_copy(32'h20, 32'hc0, 2);
         cfg_rd(12, status);

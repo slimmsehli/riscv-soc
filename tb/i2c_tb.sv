@@ -37,7 +37,7 @@ module i2c_tb;
         integer cycles;
         wr(4, cmd);
         cycles = 0;
-        do begin rd(4, s); cycles = cycles + 1; if (cycles > 300) $fatal(1, "I2C command timeout"); end
+        do begin rd(4, s); cycles = cycles + 1; if (cycles > 300) $fatal(1, "I2C command timeout status=%x state=%0d", s, dut.state); end
         while (s[0]);
         if (!s[1]) $fatal(1, "I2C command missing DONE");
     endtask
@@ -89,6 +89,15 @@ module i2c_tb;
         rd(8, received);
         if (received != 250) $fatal(1, "bad I2C divider reset");
         wr(8, 4);
+        $display("I2C boundary: reset while START command is active");
+        wr(4, 1);
+        wait (dut.busy);
+        rst_n=0; repeat (3) @(negedge clk);
+        if (scl_low || sda_low) $fatal(1, "I2C did not release lines during reset");
+        rst_n=1; repeat (3) @(negedge clk);
+        rd(4, status);
+        if (status[1:0] != 0) $fatal(1, "I2C command state survived reset: %x", status);
+        wr(8, 4); // reset restores the slow default divider
         command(1); // START
         if (sda !== 0 || scl !== 1) $fatal(1, "START condition not generated");
         wr(0, 8'h5a);

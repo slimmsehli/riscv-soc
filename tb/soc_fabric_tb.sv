@@ -82,15 +82,24 @@ module soc_fabric_tb;
 
         // A stalled CPU request keeps its address and ownership until response.
         cv=1; ca=32'h28; dv=1; da=32'h2c; stall_mem=1;
-        repeat (2) begin
+        repeat (32) begin
             @(posedge clk); #1;
             if (ma != 32'h28 || cr || dr) $fatal(1, "stalled transaction ownership changed");
         end
+        $display("Fabric boundary: 32-cycle stall held CPU ownership and request fields");
         @(negedge clk); stall_mem=0; #1;
         if (!cr) $fatal(1, "CPU stalled request did not complete");
         @(posedge clk); #1; @(negedge clk); cv=0; #1;
         if (!dr) $fatal(1, "DMA did not receive bus after stalled CPU completion");
         @(posedge clk); #1; @(negedge clk); dv=0;
+
+        // A reset during a stalled request must release arbitration ownership.
+        cv=1; ca=32'h30; dv=1; da=32'h34; stall_mem=1;
+        repeat (3) @(posedge clk);
+        rst_n=0; repeat (2) @(negedge clk);
+        cv=0; dv=0; rst_n=1; stall_mem=0;
+        repeat (3) @(negedge clk);
+        $display("Fabric boundary: reset aborted stalled ownership cleanly");
 
         // Hold both masters valid. CPU receives priority, but DMA must win by the bound.
         cv=1; ca=32'h20; dv=1; da=32'h24;

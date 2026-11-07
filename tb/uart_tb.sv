@@ -56,6 +56,17 @@ module uart_tb;
         bus_read32(4'hc, value);
         if (value != 868) $fatal(1, "bad divisor reset %0d", value);
 
+        $display("UART boundary: reset while TX frame is active");
+        bus_write32(4'hc, 8);
+        bus_write32(0, 8'h7e);
+        wait (tx == 0);
+        repeat (2) @(posedge clk);
+        rst_n = 0; repeat (3) @(negedge clk);
+        if (tx !== 1) $fatal(1, "TX did not return idle during reset");
+        rst_n = 1; repeat (3) @(negedge clk);
+        bus_read32(4, status);
+        if (!status[2] || status[0]) $fatal(1, "UART reset did not clear active TX state");
+
         bus_write32(4'hc, 8);
         $display("UART scenario: TX framing and bit timing");
         bus_write32(4'h0, 8'hA6);

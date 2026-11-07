@@ -12,7 +12,7 @@ This plan turns the requirements in [SOC_SPEC.md](SOC_SPEC.md) into six implemen
 | 4 | I2C master IP | **Complete** — I2C master RTL and self-checking Verilator testbench | I2C behavior validated and signed off |
 | 5 | SoC infrastructure | **Complete** — SRAM, interconnect, decode, arbitration, CPU wrapper, reset, and top-level wiring | Infrastructure tests and interfaces ready for assembly |
 | 6 | Integrated SoC | **Complete** — core, memory, and IPs boot and run C software in Verilator | End-to-end software and pin-level checks pass |
-| 7 | [Hardening work](SOC_HARDENING_MILESTONES.md) | In progress — item 7.3 | Seeded coverage, stronger RTL checks, corner-case stress, release evidence |
+| 7 | [Hardening work](SOC_HARDENING_MILESTONES.md) | In progress — item 7.4 | Seeded coverage, stronger RTL checks, corner-case stress, release evidence |
 
 ## Milestone 1 — Core, tools, and standalone readiness
 
