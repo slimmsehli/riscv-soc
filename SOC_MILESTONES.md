@@ -10,7 +10,7 @@ This plan turns the requirements in [SOC_SPEC.md](SOC_SPEC.md) into six implemen
 | 2 | UART IP | **Complete** — UART RTL and self-checking Verilator testbench | UART behavior validated and signed off |
 | 3 | DMA IP | **Complete** — DMA RTL and self-checking Verilator testbench | DMA behavior validated and signed off |
 | 4 | I2C master IP | **Complete** — I2C master RTL and self-checking Verilator testbench | I2C behavior validated and signed off |
-| 5 | SoC infrastructure | SRAM, interconnect, decode, arbitration, wrappers, and remaining integration blocks | Infrastructure tests and interfaces ready for assembly |
+| 5 | SoC infrastructure | **Complete** — SRAM, interconnect, decode, arbitration, CPU wrapper, reset, and top-level wiring | Infrastructure tests and interfaces ready for assembly |
 | 6 | Integrated SoC | Core, memory, and IPs boot and run C software in Verilator | End-to-end software and pin-level checks pass |
 
 ## Milestone 1 — Core, tools, and standalone readiness

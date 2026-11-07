@@ -1,0 +1,11 @@
+# SoC Infrastructure
+
+`picorv32_bus_wrapper.sv` adapts the PicoRV32 memory port to the common SoC request/response bus. `soc_bus_fabric.sv` decodes the 64 KiB SRAM and three peripheral windows, routes responses, rejects DMA peripheral accesses, and limits consecutive CPU grants under DMA contention. `soc_sram.sv` implements byte-write-enabled 64 KiB SRAM with optional `$readmemh` initialization. `soc_reset_sync.sv` asynchronously asserts reset and synchronizes deassertion. `soc_top.sv` wires these blocks to the CPU and completed peripheral IPs.
+
+Verification targets:
+
+- `make soc-sram-test`: `$readmemh` initialization, reads, byte writes, unaligned/out-of-range errors.
+- `make soc-fabric-test`: address decode, unmapped errors, DMA peripheral rejection, stalled-request ownership, and CPU/DMA fairness.
+- `make soc-lint`: whole-top Verilator elaboration/lint.
+
+The SRAM image uses one 32-bit hexadecimal word per line, with byte zero in bits 7:0, matching `scripts/bin_to_hex.py`. The integrated C boot and peripheral end-to-end test is the next milestone.
