@@ -18,7 +18,7 @@ module picorv32_bus_wrapper (
     assign bus_write = |core_wstrb;
     assign bus_wstrb = core_wstrb;
     assign core_ready = bus_ready;
-    assign core_rdata = bus_error ? 32'h00000013 : bus_rdata;
+    assign core_rdata = bus_rdata;
 
     picorv32 #(
         .ENABLE_COUNTERS(0), .ENABLE_COUNTERS64(0), .ENABLE_REGS_16_31(1),

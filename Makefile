@@ -5,7 +5,7 @@ VERILATOR ?= verilator
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
 
-.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint clean
+.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-sim sim clean
 
 core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
@@ -30,6 +30,11 @@ soc-lint:
 		rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv rtl/soc/soc_reset_sync.sv \
 		rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv
 
+soc-sim: $(BUILD)/Vsoc_tb
+	$(BUILD)/Vsoc_tb
+
+sim: soc-sim
+
 $(BUILD)/Vsoc_fabric_tb: rtl/soc/soc_bus_fabric.sv tb/soc_fabric_tb.sv
 	mkdir -p $(BUILD)
 	$(VERILATOR) --binary --timing --top-module soc_fabric_tb -Wall -Wno-fatal \
@@ -39,6 +44,22 @@ $(BUILD)/Vsoc_sram_tb: rtl/soc/soc_sram.sv tb/soc_sram_tb.sv tb/sram_init.hex
 	mkdir -p $(BUILD)
 	$(VERILATOR) --binary --timing --top-module soc_sram_tb -Wall -Wno-fatal \
 		--Mdir $(BUILD)/soc_sram_obj -o ../Vsoc_sram_tb rtl/soc/soc_sram.sv tb/soc_sram_tb.sv
+
+$(BUILD)/soc_test.elf: sw/start.S sw/soc_test.c sw/core_smoke.ld
+	mkdir -p $(BUILD)
+	$(CC) -march=rv32i -mabi=ilp32 -O1 -ffreestanding -fno-builtin -nostdlib -nostartfiles \
+		-Wl,--build-id=none -Wl,-T,sw/core_smoke.ld -Wl,-Map,$(BUILD)/soc_test.map \
+		sw/start.S sw/soc_test.c -o $@
+
+$(BUILD)/soc_test.hex: $(BUILD)/soc_test.elf scripts/bin_to_hex.py
+	$(OBJCOPY) -O binary $< $(BUILD)/soc_test.bin
+	python3 scripts/bin_to_hex.py $(BUILD)/soc_test.bin $@
+
+$(BUILD)/Vsoc_tb: $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
+		rtl/soc/soc_reset_sync.sv rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv \
+		rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv tb/soc_tb.sv $(BUILD)/soc_test.hex
+	$(VERILATOR) --binary --timing --top-module soc_tb -Wno-fatal \
+		--Mdir $(BUILD)/soc_obj -o ../Vsoc_tb $(CORE) $(filter %.sv,$^)
 
 $(BUILD)/Vi2c_tb: rtl/i2c/i2c_master.sv tb/i2c_tb.sv
 	mkdir -p $(BUILD)

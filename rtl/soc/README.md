@@ -7,5 +7,6 @@ Verification targets:
 - `make soc-sram-test`: `$readmemh` initialization, reads, byte writes, unaligned/out-of-range errors.
 - `make soc-fabric-test`: address decode, unmapped errors, DMA peripheral rejection, stalled-request ownership, and CPU/DMA fairness.
 - `make soc-lint`: whole-top Verilator elaboration/lint.
+- `make sim`: compile `sw/soc_test.c` for RV32I, link at SRAM address zero, convert to little-endian word hex, load it through `$readmemh`, and run the complete SoC in Verilator.
 
-The SRAM image uses one 32-bit hexadecimal word per line, with byte zero in bits 7:0, matching `scripts/bin_to_hex.py`. The integrated C boot and peripheral end-to-end test is the next milestone.
+The SRAM image uses one 32-bit hexadecimal word per line, with byte zero in bits 7:0, matching `scripts/bin_to_hex.py`. The integration program checks a UART signature, performs and verifies an unaligned DMA copy, and writes/reads a byte through the I2C master. It writes success/failure markers to the simulation completion mailbox at `0x10003000`; this address is reserved for simulation reporting. The top testbench independently checks transmitted UART bytes, copied SRAM contents, and I2C pin transactions.

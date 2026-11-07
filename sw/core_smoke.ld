@@ -6,7 +6,13 @@ SECTIONS {
     .text : { KEEP(*(.text.start)) *(.text*) } > RAM
     .rodata : { *(.rodata*) } > RAM
     .data : { *(.data*) } > RAM
-    .bss : { *(.bss*) *(COMMON) } > RAM
+    .bss : {
+        . = ALIGN(4);
+        __bss_start = .;
+        *(.bss*) *(COMMON)
+        . = ALIGN(4);
+        __bss_end = .;
+    } > RAM
     . = ALIGN(16);
     _stack_top = ORIGIN(RAM) + LENGTH(RAM);
     ASSERT(. < _stack_top, "program exceeds SRAM")

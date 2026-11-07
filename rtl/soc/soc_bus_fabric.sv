@@ -90,6 +90,8 @@ module soc_bus_fabric (
                 dma_cfg_valid = 1; target_ready = dma_cfg_ready; target_error = dma_cfg_error; target_rdata = dma_cfg_rdata;
             end else if (selected_addr[31:12] == 20'h10002 && !selected_dma) begin
                 i2c_valid = 1; target_ready = i2c_ready; target_error = i2c_error; target_rdata = i2c_rdata;
+            end else if (selected_addr[31:12] == 20'h10003 && !selected_dma) begin
+                target_ready = 1; target_error = 0; target_rdata = 0;
             end else begin target_ready = 1; target_error = 1; end
         end
         cpu_ready = selected_valid && target_ready && !owner_dma && !choose_dma;
