@@ -39,12 +39,14 @@ module uart_tb;
     integer bitno;
     initial begin
         repeat (4) @(negedge clk); rst_n = 1;
+        $display("UART scenario: reset values and baud divisor");
         bus_read32(4'h4, status);
         if ((status & 32'h0c) != 32'h04 || status[0]) $fatal(1, "bad reset status %x", status);
         bus_read32(4'hc, value);
         if (value != 868) $fatal(1, "bad divisor reset %0d", value);
 
         bus_write32(4'hc, 8);
+        $display("UART scenario: TX framing and bit timing");
         bus_write32(4'h0, 8'hA6);
         // Independently sample each serial bit around its center.
         wait (tx == 0);
@@ -59,6 +61,17 @@ module uart_tb;
         bus_read32(4'h4, status);
         if (status[0]) $fatal(1, "TX remains busy after frame");
 
+        $display("UART scenario: TX FIFO full and clear");
+        bus_write32(4'h8, 2); // disable TX
+        for (integer n = 0; n < 16; n = n + 1) bus_write32(0, n);
+        bus_read32(4, status);
+        if (!status[1]) $fatal(1, "TX FIFO full flag missing");
+        bus_write32(0, 8'h77); // full FIFO rejects this write
+        bus_write32(8, 7); // enable TX and clear TX FIFO
+        bus_read32(4, status);
+        if (status[1]) $fatal(1, "TX FIFO clear failed");
+
+        $display("UART scenario: RX byte, FIFO order, and wraparound");
         send_rx(8'h3c, 1);
         bus_read32(4'h4, status);
         if (status[2] || status[5:4] != 0) $fatal(1, "RX status incorrect %x", status);
@@ -67,6 +80,20 @@ module uart_tb;
         bus_read32(4'h4, status);
         if (!status[2]) $fatal(1, "RX empty flag not restored");
 
+        for (integer n = 0; n < 16; n = n + 1) send_rx((8'h80 + n), 1);
+        bus_read32(4, status);
+        if (!status[3] || status[4]) $fatal(1, "RX FIFO full status incorrect %x", status);
+        for (integer n = 0; n < 16; n = n + 1) begin
+            bus_read32(0, value);
+            if (value[7:0] != (8'h80 + n)) $fatal(1, "RX order mismatch at %0d: %02x", n, value[7:0]);
+        end
+        for (integer n = 0; n < 5; n = n + 1) send_rx((8'h20 + n), 1);
+        for (integer n = 0; n < 5; n = n + 1) begin
+            bus_read32(0, value);
+            if (value[7:0] != (8'h20 + n)) $fatal(1, "RX wrap mismatch at %0d", n);
+        end
+
+        $display("UART scenario: framing error, overrun, sticky status, and clear");
         send_rx(8'h55, 0);
         bus_read32(4'h4, status);
         if (!status[5]) $fatal(1, "framing error not set");

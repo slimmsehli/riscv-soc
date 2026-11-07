@@ -73,6 +73,7 @@ module i2c_tb;
     end
     initial begin
         repeat (4) @(negedge clk); rst_n = 1;
+        $display("I2C scenario: divider reset, START, MSB-first WRITE, ACK, STOP");
         rd(8, received);
         if (received != 250) $fatal(1, "bad I2C divider reset");
         wr(8, 4);
@@ -87,6 +88,23 @@ module i2c_tb;
         command(2); // STOP
         if (sda !== 1 || scl !== 1) $fatal(1, "STOP did not release bus");
 
+        $display("I2C scenario: data pattern sweep");
+        for (integer n=0; n<4; n=n+1) begin
+            logic [7:0] pattern;
+            case (n)
+                0: pattern=8'h00;
+                1: pattern=8'hff;
+                2: pattern=8'hc3;
+                default: pattern=8'h96;
+            endcase
+            wr(0, pattern);
+            bit_count=0; observed=0;
+            command(4);
+            if (observed != pattern) $fatal(1, "write pattern %02x observed %02x", pattern, observed);
+            $display("  I2C target captured=%02x", observed);
+        end
+
+        $display("I2C scenario: target READ byte and controller NACK");
         // Read a byte from the target and send NACK on the ninth clock.
         command(1);
         bit_count = 0; read_bit = 0; read_mode = 1; target_sda_low = 0;
@@ -100,14 +118,24 @@ module i2c_tb;
         command(4);
         rd(4, status);
         if (!status[2]) $fatal(1, "NACK not reported");
-        wr(4, 4);
+        wr(4, 1 << 9);
         rd(4, status);
         if (status[2]) $fatal(1, "ACK error W1C failed");
 
+        $display("I2C scenario: clock stretch, invalid command, disabled controller, status clear");
         // SCL held low by the target must pause a high phase, then recover.
         target_ack = 1; stretching = 1; target_scl_low = 1;
-        fork begin repeat (3) @(posedge clk); target_scl_low = 0; end join_none
+        fork begin repeat (10) @(posedge clk); target_scl_low = 0; end join_none
         command(1); command(2); stretching = 0;
+
+        wr(4, 5); // simultaneous START and WRITE is unsupported
+        rd(4, status);
+        if (!status[2] || status[0]) $fatal(1, "overlapping command status incorrect %x", status);
+        wr(4, 1 << 9); rd(4, status);
+        if (status[2]) $fatal(1, "overlap error clear failed");
+
+        wr(8, 1); rd(8, received);
+        if (received != 4) $fatal(1, "divider minimum clamp failed: %0d", received);
 
         wr(12, 0); // disabled controller rejects commands cleanly
         wr(4, 1);

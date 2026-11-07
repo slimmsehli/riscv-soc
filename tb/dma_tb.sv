@@ -18,8 +18,10 @@ module dma_tb;
     wire cpu_ready;
     logic [31:0] mem [0:255];
     logic prefer_cpu = 0;
+    integer bus_cycle = 0;
     wire grant_cpu = cpu_valid && (!dma_valid || prefer_cpu);
     wire grant_dma = dma_valid && !grant_cpu;
+    wire dma_accept = grant_dma && (bus_cycle[1:0] != 1);
     assign cpu_ready = grant_cpu;
 
     dma_ip dut(.clk, .rst_n, .cfg_valid, .cfg_ready, .cfg_addr, .cfg_write,
@@ -29,7 +31,7 @@ module dma_tb;
         .mem_rdata(dma_rdata), .mem_error(dma_error));
 
     always_comb begin
-        dma_ready = grant_dma;
+        dma_ready = dma_accept;
         dma_error = 0;
         dma_rdata = 0;
         if (grant_dma) begin
@@ -42,9 +44,10 @@ module dma_tb;
     logic [31:0] error_addr = 0;
     integer cpu_grants = 0;
     always_ff @(posedge clk) begin
+        bus_cycle <= bus_cycle + 1;
         if (grant_cpu) begin cpu_grants <= cpu_grants + 1; prefer_cpu <= 0; end
-        else if (grant_dma) prefer_cpu <= 1;
-        if (grant_dma && dma_write && !dma_error)
+        else if (dma_accept) prefer_cpu <= 1;
+        if (dma_accept && dma_write && !dma_error)
             for (integer lane = 0; lane < 4; lane = lane + 1)
                 if (dma_wstrb[lane]) mem[dma_addr[9:2]][lane*8 +: 8] <= dma_wdata[lane*8 +: 8];
         if (grant_cpu && cpu_write) mem[cpu_addr[9:2]] <= cpu_wdata;
@@ -82,12 +85,14 @@ module dma_tb;
     initial begin
         for (integer i = 0; i < 256; i = i + 1) mem[i] = 32'hcafe0000 + i;
         repeat (4) @(negedge clk); rst_n = 1;
+        $display("DMA scenario: zero-length completion");
 
         // Zero-byte request completes immediately.
         cfg_wr(8, 0); cfg_wr(12, 1); cfg_rd(12, status);
         if (status != 2) $fatal(1, "zero length status %x", status);
         cfg_wr(12, 2);
 
+        $display("DMA scenario: unaligned copy, wait states, CPU contention, START-while-busy");
         // Unaligned source and destination across word boundaries, with concurrent CPU traffic.
         cpu_valid = 1; cpu_write = 1; cpu_addr = 32'h200; cpu_wdata = 32'h12345678;
         start_copy(32'h41, 32'h83, 11);
@@ -109,6 +114,28 @@ module dma_tb;
         cfg_rd(12, status);
         if (status != 0) $fatal(1, "W1C status clear failed %x", status);
 
+        $display("DMA scenario: deterministic length sweep with byte-by-byte checks");
+        begin
+            integer lengths [0:7];
+            lengths[0]=1; lengths[1]=2; lengths[2]=3; lengths[3]=4;
+            lengths[4]=7; lengths[5]=15; lengths[6]=16; lengths[7]=31;
+            for (integer test=0; test<8; test=test+1) begin
+                for (integer b=0; b<40; b=b+1)
+                    mem[(32'h81+b)>>2][((32'h81+b)&3)*8 +: 8] = (8'h5d ^ (test*19) ^ (b*13));
+                start_copy(32'h81, 32'h203, lengths[test]);
+                wait_done();
+                for (integer b=0; b<lengths[test]; b=b+1) begin
+                    logic [7:0] source_byte, dest_byte;
+                    source_byte=mem[(32'h81+b)>>2][((32'h81+b)&3)*8 +: 8];
+                    dest_byte=mem[(32'h203+b)>>2][((32'h203+b)&3)*8 +: 8];
+                    if (source_byte != dest_byte) $fatal(1, "length %0d byte %0d mismatch", lengths[test], b);
+                end
+                $display("  DMA length=%0d passed", lengths[test]);
+                cfg_wr(12, 2);
+            end
+        end
+
+        $display("DMA scenario: single-byte copy and injected bus error");
         // Single byte transfer and a memory-bus error on destination write.
         start_copy(32'h20, 32'h40, 1); wait_done();
         if (mem[16][0 +: 8] != mem[8][0 +: 8]) $fatal(1, "single byte copy failed");

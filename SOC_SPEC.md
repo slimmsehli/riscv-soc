@@ -89,7 +89,7 @@ Register offsets from `0x1000_2000`:
 | Offset | Name | Access | Definition |
 |---:|---|---|---|
 | `0x00` | `DATA` | R/W | Transmit byte on write; received byte on read |
-| `0x04` | `CMD_STATUS` | R/W | write bit 0=START, bit 1=STOP, bit 2=WRITE, bit 3=READ, bit 4=ACK control for READ (1 sends ACK, 0 sends NACK). Read bit 0=BUSY, bit 1=DONE, bit 2=ACK_ERROR. DONE/ACK_ERROR are write-one-to-clear. |
+| `0x04` | `CMD_STATUS` | R/W | write bit 0=START, bit 1=STOP, bit 2=WRITE, bit 3=READ, bit 4=ACK control for READ (1 sends ACK, 0 sends NACK); extended write bit 8 clears DONE and bit 9 clears ACK_ERROR. Read bit 0=BUSY, bit 1=DONE, bit 2=ACK_ERROR. |
 | `0x08` | `DIV` | R/W | SCL half-period in system clocks; reset value 250 for 100 kHz at 50 MHz. Minimum legal value 4. |
 | `0x0C` | `CTRL` | R/W | bit 0=enable |
 

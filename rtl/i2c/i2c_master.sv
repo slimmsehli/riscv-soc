@@ -59,8 +59,9 @@ module i2c_master (
                     4'h8: if (|cfg_wstrb) divider <= cfg_wdata < 4 ? 4 : cfg_wdata;
                     4'hc: if (cfg_wstrb[0]) enabled <= cfg_wdata[0];
                     4'h4: begin
-                        if (cfg_wdata[1]) done <= 0;
-                        if (cfg_wdata[2]) ack_error <= 0;
+                        // Extended W1C bits avoid collisions with STOP and WRITE opcodes.
+                        if (cfg_wdata[8]) done <= 0;
+                        if (cfg_wdata[9]) ack_error <= 0;
                         if (|cfg_wdata[3:0]) begin
                             if (busy) begin ack_error <= 1; end
                             else if (!enabled || $countones(cfg_wdata[3:0]) != 1) begin

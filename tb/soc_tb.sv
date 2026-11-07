@@ -91,10 +91,13 @@ module soc_tb;
 
     initial begin
         // The SRAM is loaded by soc_sram's $readmemh before reset is released.
+        $display("SoC scenario: load RV32I image, release reset, wait for C firmware");
         repeat (5) @(negedge clk); rst_n = 1;
         while (completion == 0 && cycles < 2000000) @(negedge clk);
         if (completion != 32'h600d600d) $fatal(1, "software failure marker %08x", completion);
+        $display("SoC firmware completed at cycle=%0d marker=%08x", cycles, completion);
         repeat (2000) @(negedge clk);
+        $display("SoC scenario: independently validate UART stream, DMA SRAM, I2C pins");
         if (uart_count < 18) $fatal(1, "too few UART bytes captured: %0d", uart_count);
         if (uart_bytes[0] != "S" || uart_bytes[1] != "O" || uart_bytes[2] != "C" ||
             uart_bytes[3] != ":" || uart_bytes[4] != "U" || uart_bytes[5] != "A" ||
