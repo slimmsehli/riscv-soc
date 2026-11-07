@@ -3,6 +3,8 @@ module soc_tb;
     logic clk = 0, rst_n = 0;
     always #5 clk = ~clk;
     logic uart_rx = 1;
+    logic [15:0] gpio_in = 16'h5aa5;
+    wire [15:0] gpio_out, gpio_oe;
     wire uart_tx;
     tri1 i2c_scl, i2c_sda;
     logic target_sda_low = 0, target_scl_low = 0;
@@ -20,7 +22,8 @@ module soc_tb;
     assign i2c_sda = target_sda_low ? 1'b0 : 1'bz;
 
     soc_top #(.SRAM_INIT_FILE("build/soc_test.hex")) dut(
-        .clk, .rst_n, .uart_rx, .uart_tx, .i2c_scl, .i2c_sda, .cpu_trap()
+        .clk, .rst_n, .uart_rx, .uart_tx, .gpio_in, .gpio_out, .gpio_oe,
+        .i2c_scl, .i2c_sda, .cpu_trap()
     );
 
     // Capture UART output independently from the transmitter register path.
@@ -107,6 +110,8 @@ module soc_tb;
             uart_bytes[15] != "S" || uart_bytes[16] != "S" || uart_bytes[17] != 8'h0a)
             $fatal(1, "UART signature mismatch");
         if (target_written != 8'h5a) $fatal(1, "I2C target saw %02x", target_written);
+        if (gpio_out != 16'ha55a || gpio_oe != 16'hffff)
+            $fatal(1, "GPIO output/direction mismatch out=%04x oe=%04x",gpio_out,gpio_oe);
         if (i2c_start_count < 2 || i2c_stop_count < 2 || i2c_read_bits != 8)
             $fatal(1, "I2C bus sequence incomplete starts=%0d stops=%0d read_bits=%0d",
                 i2c_start_count, i2c_stop_count, i2c_read_bits);
@@ -116,8 +121,8 @@ module soc_tb;
             if (copied != (8'h31 + b*7)) $fatal(1, "DMA memory byte %0d got %02x", b, copied);
         end
         if (dut.cpu_trap) $fatal(1, "CPU trapped");
-        $display("SOC_TEST_PASS uart_bytes=%0d dma_bytes=13 i2c_starts=%0d i2c_stops=%0d",
-            uart_count, i2c_start_count, i2c_stop_count);
+        $display("SOC_TEST_PASS uart_bytes=%0d gpio_out=%04x gpio_oe=%04x dma_bytes=13 i2c_starts=%0d i2c_stops=%0d",
+            uart_count, gpio_out, gpio_oe, i2c_start_count, i2c_stop_count);
         $finish;
     end
     initial begin #30000000; $fatal(1, "SoC testbench timeout"); end

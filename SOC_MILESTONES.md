@@ -13,6 +13,7 @@ This plan turns the requirements in [SOC_SPEC.md](SOC_SPEC.md) into six implemen
 | 5 | SoC infrastructure | **Complete** — SRAM, interconnect, decode, arbitration, CPU wrapper, reset, and top-level wiring | Infrastructure tests and interfaces ready for assembly |
 | 6 | Integrated SoC | **Complete** — core, memory, and IPs boot and run C software in Verilator | End-to-end software and pin-level checks pass |
 | 7 | [Hardening work](SOC_HARDENING_MILESTONES.md) | **Complete** | Seeded coverage, stronger RTL checks, corner-case stress, release evidence |
+| 8 | [MCU peripheral expansion](SOC_EXPANSION_MILESTONES.md) | In progress — 8.1 GPIO | GPIO, SPI, timer/interrupts, watchdog, PWM, I2S, CAN, and USB |
 
 ## Milestone 1 — Core, tools, and standalone readiness
 

@@ -38,6 +38,14 @@ module soc_bus_fabric (
     output logic [3:0] i2c_wstrb,
     input logic [31:0] i2c_rdata,
     input logic i2c_error,
+    output logic gpio_valid,
+    input logic gpio_ready,
+    output logic [3:0] gpio_addr,
+    output logic gpio_write,
+    output logic [31:0] gpio_wdata,
+    output logic [3:0] gpio_wstrb,
+    input logic [31:0] gpio_rdata,
+    input logic gpio_error,
     output logic mem_valid,
     input logic mem_ready,
     output logic [31:0] mem_addr, mem_wdata,
@@ -71,11 +79,11 @@ module soc_bus_fabric (
             selected_write = choose_dma ? dma_write : cpu_write;
             selected_wstrb = choose_dma ? dma_wstrb : cpu_wstrb;
         end
-        uart_valid = 0; dma_cfg_valid = 0; i2c_valid = 0;
-        uart_addr = selected_addr[3:0]; dma_cfg_addr = selected_addr[3:0]; i2c_addr = selected_addr[3:0];
-        uart_write = selected_write; dma_cfg_write = selected_write; i2c_write = selected_write;
-        uart_wdata = selected_wdata; dma_cfg_wdata = selected_wdata; i2c_wdata = selected_wdata;
-        uart_wstrb = selected_wstrb; dma_cfg_wstrb = selected_wstrb; i2c_wstrb = selected_wstrb;
+        uart_valid = 0; dma_cfg_valid = 0; i2c_valid = 0; gpio_valid = 0;
+        uart_addr = selected_addr[3:0]; dma_cfg_addr = selected_addr[3:0]; i2c_addr = selected_addr[3:0]; gpio_addr = selected_addr[3:0];
+        uart_write = selected_write; dma_cfg_write = selected_write; i2c_write = selected_write; gpio_write = selected_write;
+        uart_wdata = selected_wdata; dma_cfg_wdata = selected_wdata; i2c_wdata = selected_wdata; gpio_wdata = selected_wdata;
+        uart_wstrb = selected_wstrb; dma_cfg_wstrb = selected_wstrb; i2c_wstrb = selected_wstrb; gpio_wstrb = selected_wstrb;
         mem_valid = 0; mem_addr = selected_addr; mem_write = selected_write;
         mem_wdata = selected_wdata; mem_wstrb = selected_wstrb;
         target_ready = 0; target_error = 0; target_rdata = 0;
@@ -90,6 +98,8 @@ module soc_bus_fabric (
                 i2c_valid = 1; target_ready = i2c_ready; target_error = i2c_error; target_rdata = i2c_rdata;
             end else if (selected_addr[31:12] == 20'h10003 && !selected_dma) begin
                 target_ready = 1; target_error = 0; target_rdata = 0;
+            end else if (selected_addr[31:12] == 20'h10004 && !selected_dma) begin
+                gpio_valid = 1; target_ready = gpio_ready; target_error = gpio_error; target_rdata = gpio_rdata;
             end else begin target_ready = 1; target_error = 1; end
         end
         cpu_ready = selected_valid && target_ready && !owner_dma && !choose_dma;

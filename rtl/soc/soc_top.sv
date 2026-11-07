@@ -6,6 +6,9 @@ module soc_top #(
     input logic rst_n,
     input logic uart_rx,
     output logic uart_tx,
+    input logic [15:0] gpio_in,
+    output logic [15:0] gpio_out,
+    output logic [15:0] gpio_oe,
     inout wire i2c_scl,
     inout wire i2c_sda,
     output logic cpu_trap
@@ -29,6 +32,9 @@ module soc_top #(
     logic i2c_valid, i2c_ready, i2c_error, i2c_write;
     logic [3:0] i2c_addr, i2c_wstrb;
     logic [31:0] i2c_wdata, i2c_rdata;
+    logic gpio_valid, gpio_ready, gpio_error, gpio_write;
+    logic [3:0] gpio_addr, gpio_wstrb;
+    logic [31:0] gpio_wdata, gpio_rdata;
     logic mem_valid, mem_ready, mem_write, mem_error;
     logic [31:0] mem_addr, mem_wdata, mem_rdata;
     logic [3:0] mem_wstrb;
@@ -52,6 +58,10 @@ module soc_top #(
         .cfg_addr(i2c_addr), .cfg_write(i2c_write), .cfg_wdata(i2c_wdata), .cfg_wstrb(i2c_wstrb),
         .cfg_rdata(i2c_rdata), .cfg_error(i2c_error), .i2c_scl_in(i2c_scl),
         .i2c_scl_low, .i2c_sda_in(i2c_sda), .i2c_sda_low);
+    gpio_ip gpio(.clk, .rst_n(core_rst_n), .bus_valid(gpio_valid), .bus_ready(gpio_ready),
+        .bus_addr(gpio_addr), .bus_write(gpio_write), .bus_wdata(gpio_wdata),
+        .bus_wstrb(gpio_wstrb), .bus_rdata(gpio_rdata), .bus_error(gpio_error),
+        .gpio_in, .gpio_out, .gpio_oe);
     soc_sram #(.WORDS(SRAM_WORDS), .INIT_FILE(SRAM_INIT_FILE)) sram(.clk,
         .valid(mem_valid), .ready(mem_ready), .addr(mem_addr), .write(mem_write), .wdata(mem_wdata),
         .wstrb(mem_wstrb), .rdata(mem_rdata), .error(mem_error));
@@ -65,5 +75,6 @@ module soc_top #(
         .dma_cfg_valid, .dma_cfg_ready, .dma_cfg_addr, .dma_cfg_write, .dma_cfg_wdata,
         .dma_cfg_wstrb, .dma_cfg_rdata, .dma_cfg_error,
         .i2c_valid, .i2c_ready, .i2c_addr, .i2c_write, .i2c_wdata, .i2c_wstrb, .i2c_rdata, .i2c_error,
+        .gpio_valid, .gpio_ready, .gpio_addr, .gpio_write, .gpio_wdata, .gpio_wstrb, .gpio_rdata, .gpio_error,
         .mem_valid, .mem_ready, .mem_addr, .mem_wdata, .mem_write, .mem_wstrb, .mem_rdata, .mem_error);
 endmodule

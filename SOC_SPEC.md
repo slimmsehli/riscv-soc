@@ -30,6 +30,9 @@ Required ports:
 | `rst_n` | input | Active-low reset |
 | `uart_rx` | input | UART receive pin, idle high |
 | `uart_tx` | output | UART transmit pin, idle high |
+| `gpio_in[15:0]` | input | 16 external GPIO inputs |
+| `gpio_out[15:0]` | output | GPIO output values |
+| `gpio_oe[15:0]` | output | GPIO output enables; 1=drive output, 0=input/high impedance at board wrapper |
 | `i2c_scl` | inout | Open-drain I2C clock; drive low or release |
 | `i2c_sda` | inout | Open-drain I2C data; drive low or release |
 
@@ -45,6 +48,7 @@ All addresses are byte addresses. Bus accesses are 32-bit aligned; byte enables 
 | UART | `0x1000_0000` | 4 KiB | Register interface below |
 | DMA | `0x1000_1000` | 4 KiB | Register interface below |
 | I2C | `0x1000_2000` | 4 KiB | Register interface below |
+| GPIO | `0x1000_4000` | 4 KiB | 16-pin input/output/direction block |
 
 The decoder uses the high address bits and rejects addresses outside these windows. Peripheral registers occupy the first 16 bytes of each window; other offsets read as zero and writes have no effect (or return an access error, consistently documented and tested).
 
@@ -94,6 +98,18 @@ Register offsets from `0x1000_2000`:
 | `0x0C` | `CTRL` | R/W | bit 0=enable |
 
 The controller supports START, STOP, byte WRITE, and byte READ operations, one command at a time, with MSB-first data and ACK/NACK on the ninth clock. It must release SDA/SCL to represent logic high and only actively drive low. Include clock stretching by waiting while sampled SCL is low. START/STOP and data setup/hold timing derive from `DIV`. Unsupported or overlapping commands set an error and complete without hanging. There is no multi-controller arbitration or interrupt in the baseline.
+
+### 6.4 GPIO
+
+The first expansion GPIO block has 16 pins. Inputs pass through two clocked synchronizer stages. Reset configures all pins as inputs, clears output values, and does not drive external pins high. Direction bit 1 drives the corresponding output value; bit 0 leaves the pin in input mode.
+
+| Offset | Name | Access | Definition |
+|---:|---|---|---|
+| `0x00` | `INPUT` | R | Synchronized pin values in bits 15:0; upper bits read zero |
+| `0x04` | `OUTPUT` | R/W | Output latch in bits 15:0; upper bits ignored/read zero |
+| `0x08` | `DIR` | R/W | 1=output, 0=input for each pin; reset value zero |
+
+Writes honor the common bus byte strobes. The baseline has no GPIO interrupts, pull-up controls, or per-pin alternate functions.
 
 ## 7. Reset values
 

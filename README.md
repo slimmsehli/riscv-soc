@@ -10,6 +10,7 @@ A small RV32I system-on-chip implemented in SystemVerilog. It integrates the ope
 - UART with transmit and receive FIFOs
 - Memory-to-memory DMA with byte-accurate unaligned transfers
 - Open-drain I2C master with clock-stretch support
+- 16-pin GPIO with synchronized inputs and per-pin direction
 - Freestanding RV32I C build and `$readmemh` program loading
 - Seeded randomized tests, functional coverage bins, reset/stall/boundary checks, Verilator lint, Icarus elaboration, and Yosys synthesis checks
 
@@ -22,6 +23,7 @@ A small RV32I system-on-chip implemented in SystemVerilog. It integrates the ope
 | DMA | `0x1000_1000` | 4 KiB |
 | I2C master | `0x1000_2000` | 4 KiB |
 | Simulation completion mailbox | `0x1000_3000` | Test use |
+| GPIO | `0x1000_4000` | 4 KiB |
 
 The full register definitions and bus contract are in [SOC_SPEC.md](SOC_SPEC.md).
 
@@ -66,7 +68,7 @@ Run all unit, infrastructure, lint, elaboration, synthesis, and integration chec
 
 ```sh
 make clean
-make core-smoke uart-test dma-test i2c-test soc-sram-test soc-fabric-test soc-lint soc-iverilog soc-synth sim
+make core-smoke uart-test dma-test i2c-test gpio-test soc-sram-test soc-fabric-test soc-lint soc-iverilog soc-synth sim
 ```
 
 UART, DMA, I2C, and fabric tests run seeds `1`, `42`, and `2025` by default. Override the set for a target, for example:

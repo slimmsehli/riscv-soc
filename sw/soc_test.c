@@ -3,12 +3,14 @@
 #define UART_BASE 0x10000000u
 #define DMA_BASE  0x10001000u
 #define I2C_BASE  0x10002000u
+#define GPIO_BASE 0x10004000u
 #define SIM_DONE  0x10003000u
 #define REG32(a) (*(volatile uint32_t *)(a))
 
 static volatile uint32_t *const uart = (volatile uint32_t *)UART_BASE;
 static volatile uint32_t *const dma = (volatile uint32_t *)DMA_BASE;
 static volatile uint32_t *const i2c = (volatile uint32_t *)I2C_BASE;
+static volatile uint32_t *const gpio = (volatile uint32_t *)GPIO_BASE;
 
 static void uart_putc(uint8_t byte)
 {
@@ -64,6 +66,13 @@ int main(void)
     uart[2] = 3;
     uart[3] = 16;
     uart_puts("SOC:UART\n");
+    gpio[1] = 0xa55au;
+    gpio[2] = 0xffffu;
+    if (gpio[0] != 0x5aa5u || gpio[1] != 0xa55au) {
+        uart_puts("SOC:GPIO_FAIL\n");
+        REG32(SIM_DONE) = 0xdead0004u;
+        for (;;) { }
+    }
     if (!dma_test()) {
         uart_puts("SOC:DMA_FAIL\n");
         REG32(SIM_DONE) = 0xdead0002u;

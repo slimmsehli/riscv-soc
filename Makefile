@@ -6,12 +6,12 @@ IVERILOG ?= iverilog
 YOSYS ?= yosys
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
-SOC_RTL := $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
+SOC_RTL := $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv rtl/gpio/gpio_ip.sv \
 	rtl/soc/soc_reset_sync.sv rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv \
 	rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv
 SEEDS ?= 1 42 2025
 
-.PHONY: core-smoke uart-test dma-test i2c-test soc-fabric-test soc-sram-test soc-lint soc-iverilog soc-synth soc-sim sim clean
+.PHONY: core-smoke uart-test dma-test i2c-test gpio-test soc-fabric-test soc-sram-test soc-lint soc-iverilog soc-synth soc-sim sim clean
 
 core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
@@ -24,6 +24,9 @@ dma-test: $(BUILD)/Vdma_tb
 
 i2c-test: $(BUILD)/Vi2c_tb
 	@set -e; for seed in $(SEEDS); do $(BUILD)/Vi2c_tb +SEED=$$seed; done
+
+gpio-test: $(BUILD)/Vgpio_tb
+	$(BUILD)/Vgpio_tb
 
 soc-fabric-test: $(BUILD)/Vsoc_fabric_tb
 	@set -e; for seed in $(SEEDS); do $(BUILD)/Vsoc_fabric_tb +SEED=$$seed; done
@@ -72,7 +75,7 @@ $(BUILD)/soc_test.hex: $(BUILD)/soc_test.elf scripts/bin_to_hex.py
 	$(OBJCOPY) -O binary $< $(BUILD)/soc_test.bin
 	python3 scripts/bin_to_hex.py $(BUILD)/soc_test.bin $@
 
-$(BUILD)/Vsoc_tb: $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv \
+$(BUILD)/Vsoc_tb: $(CORE) rtl/uart/uart_ip.sv rtl/dma/dma_ip.sv rtl/i2c/i2c_master.sv rtl/gpio/gpio_ip.sv \
 		rtl/soc/soc_reset_sync.sv rtl/soc/soc_sram.sv rtl/soc/soc_bus_fabric.sv \
 		rtl/soc/picorv32_bus_wrapper.sv rtl/soc/soc_top.sv tb/soc_tb.sv $(BUILD)/soc_test.hex
 	$(VERILATOR) --binary --timing --top-module soc_tb -Wno-fatal \
@@ -82,6 +85,11 @@ $(BUILD)/Vi2c_tb: rtl/i2c/i2c_master.sv tb/i2c_tb.sv
 	mkdir -p $(BUILD)
 	$(VERILATOR) --binary --timing --top-module i2c_tb -Wall -Wno-fatal \
 		--Mdir $(BUILD)/i2c_obj -o ../Vi2c_tb $^
+
+$(BUILD)/Vgpio_tb: rtl/gpio/gpio_ip.sv tb/gpio_tb.sv
+	mkdir -p $(BUILD)
+	$(VERILATOR) --binary --timing --top-module gpio_tb -Wall -Wno-fatal \
+		--Mdir $(BUILD)/gpio_obj -o ../Vgpio_tb $^
 
 $(BUILD)/Vdma_tb: rtl/dma/dma_ip.sv tb/dma_tb.sv
 	mkdir -p $(BUILD)
