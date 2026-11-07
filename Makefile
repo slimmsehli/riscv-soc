@@ -5,13 +5,21 @@ VERILATOR ?= verilator
 BUILD := build
 CORE := rtl/vendor/picorv32/picorv32.v
 
-.PHONY: core-smoke uart-test clean
+.PHONY: core-smoke uart-test dma-test clean
 
 core-smoke: $(BUILD)/Vcore_smoke
 	$(BUILD)/Vcore_smoke
 
 uart-test: $(BUILD)/Vuart_tb
 	$(BUILD)/Vuart_tb
+
+dma-test: $(BUILD)/Vdma_tb
+	$(BUILD)/Vdma_tb
+
+$(BUILD)/Vdma_tb: rtl/dma/dma_ip.sv tb/dma_tb.sv
+	mkdir -p $(BUILD)
+	$(VERILATOR) --binary --timing --top-module dma_tb -Wall -Wno-fatal \
+		--Mdir $(BUILD)/dma_obj -o ../Vdma_tb $^
 
 $(BUILD)/Vuart_tb: rtl/uart/uart_ip.sv tb/uart_tb.sv
 	mkdir -p $(BUILD)
