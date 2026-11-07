@@ -8,7 +8,7 @@
 - License: ISC; see [`rtl/vendor/picorv32/COPYING`](rtl/vendor/picorv32/COPYING)
 - Configuration for the smoke test: RV32I, no compressed instructions, multiply/divide or interrupts; reset vector `0x00000000`.
 
-The source is vendored so builds do not need network access after checkout. Update it only by deliberately changing the pinned revision and reviewing the upstream license and interface changes.
+The core is tracked as a Git submodule pinned to the revision above. Clone this project with `git clone --recurse-submodules ...` (or run `git submodule update --init --recursive` after cloning) to retrieve it. Update the pin only by deliberately changing the submodule revision and reviewing upstream license and interface changes.
 
 ## Tools
 
